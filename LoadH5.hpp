@@ -62,3 +62,24 @@ std::pair<std::vector<int>, std::vector<ImagePair>> load_h5(
     cam_indices_dataset.read(cam_indices.data(), PredType::NATIVE_INT);
     return {cam_indices, pairs};
 }
+
+
+void export_cam_params(const std::string& path, std::map<int, std::array<double, 4>> cam_params)
+{
+    using namespace H5;
+
+    H5File file(path, H5F_ACC_TRUNC);
+
+    for (const auto& [cam_idx, params] : cam_params) {
+        std::string name = fmt::format("cam_{}", cam_idx);
+
+        hsize_t dims[1] = {4};
+        DataSpace dataspace(1, dims);
+
+        DataSet dataset = file.createDataSet(name, PredType::NATIVE_DOUBLE, dataspace);
+        dataset.write(params.data(), PredType::NATIVE_DOUBLE);
+
+        dataset.createAttribute("cam_idx", PredType::NATIVE_INT, DataSpace(H5S_SCALAR))
+            .write(PredType::NATIVE_INT, &cam_idx);
+    }
+}

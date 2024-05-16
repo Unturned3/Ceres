@@ -137,5 +137,6 @@ int main()
     final_cost = std::sqrt(final_cost);
     fmt::print("\nAverage reprojection error: {:.2f} pixels\n", final_cost);
 
+    export_cam_params(DATA_DIR "optimized_cam_params.h5", cam_params);
     return 0;
 }
