@@ -98,7 +98,7 @@ private:
 
 int main()
 {
-    cnpy::NpyArray gt_poses = cnpy::npy_load(DATA_DIR "000.npy");
+    //cnpy::NpyArray gt_poses = cnpy::npy_load(DATA_DIR "000.npy");
 
     auto [cam_indices, image_pairs] = load_h5(DATA_DIR "cart10.h5");
 
@@ -119,7 +119,7 @@ int main()
     }
 
     ceres::Solver::Options options;
-    options.linear_solver_type = ceres::DENSE_SCHUR;
+    options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
     options.minimizer_progress_to_stdout = true;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);

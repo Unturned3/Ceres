@@ -13,6 +13,12 @@ include(utils)
 
 prevent_in_src_build()
 
+# See: https://www.scivision.dev/cmake-ignore-anaconda-libs/
+if(DEFINED ENV{CONDA_PREFIX})
+    list(APPEND CMAKE_IGNORE_PREFIX_PATH $ENV{CONDA_PREFIX})
+    list(APPEND CMAKE_IGNORE_PATH $ENV{CONDA_PREFIX}/bin)
+endif()
+
 add_subdirectory(cnpy)  # for reading/writing numpy arrays
 add_subdirectory(fmt)
 
