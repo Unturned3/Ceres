@@ -10,6 +10,7 @@
 #include "fmt/ranges.h"
 
 #include "ImagePair.hpp"
+#include "Track.hpp"
 
 std::pair<std::vector<int>, std::vector<ImagePair>> load_h5(
     const std::string& path)
@@ -63,8 +64,44 @@ std::pair<std::vector<int>, std::vector<ImagePair>> load_h5(
     return {cam_indices, pairs};
 }
 
+std::pair<std::vector<int>, std::vector<Track>> load_tracks(
+    const std::string& path)
+{
+    using namespace H5;
 
-void export_cam_params(const std::string& path, std::map<int, std::array<double, 4>> cam_params)
+    std::vector<int> track_uids;
+    std::vector<Track> tracks;
+
+    H5File file(path, H5F_ACC_RDONLY);
+
+    int n_tracks;
+    file.openAttribute("n_tracks").read(PredType::NATIVE_INT, &n_tracks);
+
+    DataSet track_uids_dataset = file.openDataSet("track_uids");
+    track_uids.resize(static_cast<size_t>(n_tracks));
+    track_uids_dataset.read(track_uids.data(), PredType::NATIVE_INT);
+
+    for (int uid : track_uids) {
+        Track t;
+        t.uid = uid;
+        Group g = file.openGroup(fmt::format("track_{}", uid));
+
+        DataSet pts_dataset = g.openDataSet("pts");
+        hsize_t src_pts_dims[2];
+        pts_dataset.getSpace().getSimpleExtentDims(src_pts_dims, NULL);
+        t.pts.resize(src_pts_dims[0]);
+        pts_dataset.read(t.pts.data(), PredType::NATIVE_DOUBLE);
+
+        g.openAttribute("start_frame_idx")
+            .read(PredType::NATIVE_INT, &t.start_frame_idx);
+        tracks.push_back(t);
+    }
+
+    return {track_uids, tracks};
+}
+
+void export_cam_params(const std::string& path,
+                       std::map<int, std::array<double, 4>> cam_params)
 {
     using namespace H5;
 
@@ -76,10 +113,13 @@ void export_cam_params(const std::string& path, std::map<int, std::array<double,
         hsize_t dims[1] = {4};
         DataSpace dataspace(1, dims);
 
-        DataSet dataset = file.createDataSet(name, PredType::NATIVE_DOUBLE, dataspace);
+        DataSet dataset =
+            file.createDataSet(name, PredType::NATIVE_DOUBLE, dataspace);
         dataset.write(params.data(), PredType::NATIVE_DOUBLE);
 
-        dataset.createAttribute("cam_idx", PredType::NATIVE_INT, DataSpace(H5S_SCALAR))
+        dataset
+            .createAttribute("cam_idx", PredType::NATIVE_INT,
+                             DataSpace(H5S_SCALAR))
             .write(PredType::NATIVE_INT, &cam_idx);
     }
 }

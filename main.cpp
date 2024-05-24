@@ -18,96 +18,57 @@
 
 #include "ImagePair.hpp"
 #include "LoadH5.hpp"
+#include "ReprojError.hpp"
+#include "ReprojErrorWithMotion.hpp"
 #include "config.h"
 #include "utils.hpp"
 
-/*  Computes the relative reprojection error between two images observed
-    by two cameras. We "unproject" a 2D point seen by cam1 and then project
-    this point onto the image plane of cam2. The error is the difference
-    between the reprojection and the observed 2D points in cam2.
-
-    The cameras are parameterized by an axis-angle rotation and a focal length.
-*/
-struct RelativeReprojError {
-    RelativeReprojError(const Eigen::Vector2d& src_pt,
-                        const Eigen::Vector2d& observed_pt)
-        : src_pt(src_pt), observed_pt(observed_pt)
-    {
-    }
-
-    template <typename T>
-    bool operator()(const T* const cam0, const T* const cam1,
-                    T* residuals) const
-    {
-        /*  cam[0:3] is the axis-angle rotation, cam[3] is the focal length.
-            Intrinsic matrix K of a camera has the form:
-            [-f 0 320]
-            [ 0 f 240]
-            [ 0 0   1]
-        */
-
-        Eigen::Matrix<T, 3, 3> R0, R1;
-        ceres::AngleAxisToRotationMatrix(cam0, R0.data());
-        ceres::AngleAxisToRotationMatrix(cam1, R1.data());
-
-        T f0 = cam0[3];
-        T f1 = cam1[3];
-
-        T cx = T(320);
-        T cy = T(240);
-
-        Eigen::Vector3<T> src_pt_3d {
-            (src_pt[0] - cx) / -f0,
-            (src_pt[1] - cy) / f0,
-            T(1),
-        };
-
-        Eigen::Vector3<T> dst_pt_3d = R1.transpose() * R0 * src_pt_3d;
-
-        Eigen::Vector2<T> dst_pt {
-            (-f1 * dst_pt_3d[0]) / dst_pt_3d[2] + cx,
-            (f1 * dst_pt_3d[1]) / dst_pt_3d[2] + cy,
-        };
-
-        residuals[0] = dst_pt[0] - T(observed_pt[0]);
-        residuals[1] = dst_pt[1] - T(observed_pt[1]);
-
-        return true;
-    }
-
-    static ceres::CostFunction* create(const Eigen::Vector2d& src_pt,
-                                       const Eigen::Vector2d& observed_pt)
-    {
-        return new ceres::AutoDiffCostFunction<RelativeReprojError, 2, 4, 4>(
-            new RelativeReprojError(src_pt, observed_pt));
-    }
-
-    static ceres::CostFunction* create(const std::array<double, 2> src_pt,
-                                       const std::array<double, 2> observed_pt)
-    {
-        return new ceres::AutoDiffCostFunction<RelativeReprojError, 2, 4, 4>(
-            new RelativeReprojError(
-                Eigen::Vector2d(src_pt[0], src_pt[1]),
-                Eigen::Vector2d(observed_pt[0], observed_pt[1])));
-    }
-
-private:
-    const Eigen::Vector2d src_pt;
-    const Eigen::Vector2d observed_pt;
-};
-
-int main()
+void tracks_to_residuals(const std::vector<Track>& tracks,
+                         std::map<int, std::array<double, 4>>& cam_params,
+                         std::map<int, std::array<double, 3>>& pt_motions,
+                         ceres::Problem& problem,
+                         double reg)
 {
-    //cnpy::NpyArray gt_poses = cnpy::npy_load(DATA_DIR "000.npy");
+    for (auto& t : tracks) {
+        size_t f = static_cast<size_t>(t.start_frame_idx);
+        for (size_t i = 0; i < t.pts.size() - 1; i++) {
+            auto cost_fn =
+                RelativeReprojErrorWithMotion::create(t.pts[i], t.pts[i + 1], reg);
 
-    auto [cam_indices, image_pairs] = load_h5(DATA_DIR "cart10.h5");
+            problem.AddResidualBlock(cost_fn, nullptr,
+                                     cam_params[int(f + i)].data(),
+                                     cam_params[int(f + i + 1)].data(),
+                                     pt_motions[int(t.uid)].data());
+        }
+    }
+}
+
+int main(int argc, char** argv)
+{
+    fmt::print("Using reg: {}\n", argv[1]);
+
+    // cnpy::NpyArray gt_poses = cnpy::npy_load(DATA_DIR "000.npy");
+
+    auto [cam_indices, image_pairs] = load_h5(DATA_DIR "pairs.h5");
+    auto [track_uids, tracks] = load_tracks(DATA_DIR "tracks.h5");
 
     std::map<int, std::array<double, 4>> cam_params;
-    for (int& i : cam_indices) {
+    //for (int& i : cam_indices) {
+    //    cam_params[i] = {0, 0, 0, 640};
+    //}
+    for (int i = 0; i < 900; i++) {
         cam_params[i] = {0, 0, 0, 640};
     }
 
+    std::map<int, std::array<double, 3>> pt_motions;
+    for (int& i : track_uids) {
+        pt_motions[i] = {0, 0, 0};
+    }
+
+    fmt::print("Number of tracks: {}\n", int(tracks.size()));
+
     ceres::Problem problem;
+
     for (const ImagePair& p : image_pairs) {
         for (size_t i = 0; i < p.src_pts.size(); i++) {
             ceres::CostFunction* cost_function =
@@ -116,6 +77,13 @@ int main()
                                      cam_params[p.i].data(),
                                      cam_params[p.j].data());
         }
+    }
+
+    tracks_to_residuals(tracks, cam_params, pt_motions, problem,
+                        std::stod(argv[1]));
+
+    for (int& i : track_uids) {
+        problem.SetParameterBlockConstant(pt_motions[i].data());
     }
 
     ceres::Solver::Options options;
