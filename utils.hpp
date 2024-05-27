@@ -9,6 +9,10 @@
 #include <sstream>
 #include <string>
 
+#include <Eigen/Dense>
+#include <ceres/ceres.h>
+#include <ceres/rotation.h>
+
 typedef unsigned int uint;
 
 #ifdef LOG_FILE_AND_LINE
@@ -81,5 +85,20 @@ private:
     std::string message;
     std::string unit;
 };
+
+
+template <typename T>
+Eigen::Matrix<T, 3, 3> apply_angular_vel(Eigen::Vector4<T> r,
+                                      Eigen::Vector4<T> av,
+                                      T time)
+{
+    Eigen::Matrix<T, 3, 3> R, R_av;
+    r *= r[3];
+    av *= av[3] * time;
+    ceres::AngleAxisToRotationMatrix(r.data(), R.data());
+    ceres::AngleAxisToRotationMatrix(av.data(), R_av.data());
+    return R_av * R;
+}
+
 
 }  // namespace utils

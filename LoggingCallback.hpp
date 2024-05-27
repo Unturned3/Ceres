@@ -1,8 +1,8 @@
 
 #include <iostream>
 #include <map>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include <Eigen/Dense>
 
@@ -13,7 +13,6 @@
 #include "fmt/format.h"
 #include "fmt/printf.h"
 #include "fmt/ranges.h"
-
 
 class LoggingCallback : public ceres::IterationCallback {
 public:

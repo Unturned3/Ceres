@@ -21,24 +21,26 @@
 #include "ReprojError.hpp"
 #include "ReprojErrorWithMotion.hpp"
 #include "config.h"
+#include "h5_rw.hpp"
 #include "utils.hpp"
 
 void tracks_to_residuals(const std::vector<Track>& tracks,
                          std::map<int, std::array<double, 4>>& cam_params,
                          std::map<int, std::array<double, 3>>& pt_motions,
-                         ceres::Problem& problem,
-                         double reg)
+                         ceres::Problem& problem, double reg)
 {
     for (auto& t : tracks) {
         size_t f = static_cast<size_t>(t.start_frame_idx);
         for (size_t i = 0; i < t.pts.size() - 1; i++) {
             auto cost_fn =
-                RelativeReprojErrorWithMotion::create(t.pts[i], t.pts[i + 1], reg);
+                // RelativeReprojErrorWithMotion::create(t.pts[i], t.pts[i + 1],
+                // reg);
+                RelativeReprojError::create(t.pts[i], t.pts[i + 1]);
 
             problem.AddResidualBlock(cost_fn, nullptr,
                                      cam_params[int(f + i)].data(),
-                                     cam_params[int(f + i + 1)].data(),
-                                     pt_motions[int(t.uid)].data());
+                                     cam_params[int(f + i + 1)].data());
+            // pt_motions[int(t.uid)].data());
         }
     }
 }
@@ -50,22 +52,22 @@ int main(int argc, char** argv)
     // cnpy::NpyArray gt_poses = cnpy::npy_load(DATA_DIR "000.npy");
 
     auto [cam_indices, image_pairs] = load_h5(DATA_DIR "pairs.h5");
-    auto [track_uids, tracks] = load_tracks(DATA_DIR "tracks.h5");
+    // auto [track_uids, tracks] = load_tracks(DATA_DIR "tracks.h5");
 
     std::map<int, std::array<double, 4>> cam_params;
-    //for (int& i : cam_indices) {
-    //    cam_params[i] = {0, 0, 0, 640};
-    //}
+    // for (int& i : cam_indices) {
+    //     cam_params[i] = {0, 0, 0, 640};
+    // }
     for (int i = 0; i < 900; i++) {
         cam_params[i] = {0, 0, 0, 640};
     }
 
     std::map<int, std::array<double, 3>> pt_motions;
-    for (int& i : track_uids) {
-        pt_motions[i] = {0, 0, 0};
-    }
+    // for (int& i : track_uids) {
+    //     pt_motions[i] = {0, 0, 0};
+    // }
 
-    fmt::print("Number of tracks: {}\n", int(tracks.size()));
+    // fmt::print("Number of tracks: {}\n", int(tracks.size()));
 
     ceres::Problem problem;
 
@@ -73,20 +75,21 @@ int main(int argc, char** argv)
         for (size_t i = 0; i < p.src_pts.size(); i++) {
             ceres::CostFunction* cost_function =
                 RelativeReprojError::create(p.src_pts[i], p.dst_pts[i]);
-            problem.AddResidualBlock(cost_function, nullptr,
+            problem.AddResidualBlock(cost_function, new ceres::CauchyLoss(0.5),
                                      cam_params[p.i].data(),
                                      cam_params[p.j].data());
         }
     }
 
-    tracks_to_residuals(tracks, cam_params, pt_motions, problem,
-                        std::stod(argv[1]));
+    // tracks_to_residuals(tracks, cam_params, pt_motions, problem,
+    //                     std::stod(argv[1]));
 
-    for (int& i : track_uids) {
-        problem.SetParameterBlockConstant(pt_motions[i].data());
-    }
+    // for (int& i : track_uids) {
+    //     problem.SetParameterBlockConstant(pt_motions[i].data());
+    // }
 
     ceres::Solver::Options options;
+    options.max_num_iterations = 500;
     options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
     options.minimizer_progress_to_stdout = true;
     ceres::Solver::Summary summary;

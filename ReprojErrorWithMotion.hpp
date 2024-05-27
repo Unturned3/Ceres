@@ -1,8 +1,4 @@
 
-#include <iostream>
-#include <map>
-#include <vector>
-
 #include <Eigen/Dense>
 
 #include <ceres/ceres.h>
@@ -78,8 +74,7 @@ struct RelativeReprojErrorWithMotion {
                                                4, 4, 3>(
             new RelativeReprojErrorWithMotion(
                 Eigen::Vector2d(src_pt[0], src_pt[1]),
-                Eigen::Vector2d(observed_pt[0], observed_pt[1]),
-                reg));
+                Eigen::Vector2d(observed_pt[0], observed_pt[1]), reg));
     }
 
 private:

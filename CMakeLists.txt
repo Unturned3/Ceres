@@ -19,8 +19,8 @@ if(DEFINED ENV{CONDA_PREFIX})
     list(APPEND CMAKE_IGNORE_PATH $ENV{CONDA_PREFIX}/bin)
 endif()
 
-add_subdirectory(cnpy)  # for reading/writing numpy arrays
-add_subdirectory(fmt)
+add_subdirectory(thirdparty/cnpy)  # for reading/writing numpy arrays
+add_subdirectory(thirdparty/fmt)
 
 
 find_package(HDF5 REQUIRED COMPONENTS CXX)
@@ -41,10 +41,37 @@ target_compile_features(main PRIVATE cxx_std_20)
 target_compile_options(main PRIVATE
     -Wall -Wextra -Wpedantic -Wconversion
     -Wno-unused-variable -Wno-unused-parameter
+    -Wno-sign-conversion
     -O3 #-g3 -Werror
 )
 
 target_link_libraries(main PRIVATE
+    ${HDF5_LIBRARIES}
+    fmt::fmt
+    cnpy
+    ZLIB::ZLIB
+    Eigen3::Eigen
+    Ceres::ceres
+    ${OpenCV_LIBS}
+)
+
+
+### Interp Executable ###
+
+add_executable(interp interp.cpp)
+
+set_target_properties(interp PROPERTIES CXX_EXTENSIONS OFF)
+
+target_compile_features(interp PRIVATE cxx_std_20)
+
+target_compile_options(interp PRIVATE
+    -Wall -Wextra -Wpedantic -Wconversion
+    -Wno-unused-variable -Wno-unused-parameter
+    -Wno-sign-conversion
+    -O3 #-g3 -Werror
+)
+
+target_link_libraries(interp PRIVATE
     ${HDF5_LIBRARIES}
     fmt::fmt
     cnpy
