@@ -19,11 +19,11 @@
 #include "ImagePair.hpp"
 #include "LoadH5.hpp"
 #include "ReprojError.hpp"
-#include "ReprojErrorWithMotion.hpp"
 #include "config.h"
 #include "h5_rw.hpp"
 #include "utils.hpp"
 
+/*
 void tracks_to_residuals(const std::vector<Track>& tracks,
                          std::map<int, std::array<double, 4>>& cam_params,
                          std::map<int, std::array<double, 3>>& pt_motions,
@@ -44,13 +44,10 @@ void tracks_to_residuals(const std::vector<Track>& tracks,
         }
     }
 }
+*/
 
 int main(int argc, char** argv)
 {
-    fmt::print("Using reg: {}\n", argv[1]);
-
-    // cnpy::NpyArray gt_poses = cnpy::npy_load(DATA_DIR "000.npy");
-
     auto [cam_indices, image_pairs] = load_h5(DATA_DIR "pairs.h5");
     // auto [track_uids, tracks] = load_tracks(DATA_DIR "tracks.h5");
 

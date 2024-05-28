@@ -30,22 +30,22 @@ find_package(OpenCV REQUIRED)
 find_package(ZLIB REQUIRED)     # required by cnpy
 
 
-### Main executable ###
+### estimate executable ###
 
-add_executable(main main.cpp)
+add_executable(estimate estimate-vanilla.cpp)
 
-set_target_properties(main PROPERTIES CXX_EXTENSIONS OFF)
+set_target_properties(estimate PROPERTIES CXX_EXTENSIONS OFF)
 
-target_compile_features(main PRIVATE cxx_std_20)
+target_compile_features(estimate PRIVATE cxx_std_20)
 
-target_compile_options(main PRIVATE
+target_compile_options(estimate PRIVATE
     -Wall -Wextra -Wpedantic -Wconversion
     -Wno-unused-variable -Wno-unused-parameter
     -Wno-sign-conversion
     -O3 #-g3 -Werror
 )
 
-target_link_libraries(main PRIVATE
+target_link_libraries(estimate PRIVATE
     ${HDF5_LIBRARIES}
     fmt::fmt
     cnpy
