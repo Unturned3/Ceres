@@ -21,6 +21,7 @@ endif()
 
 add_subdirectory(thirdparty/cnpy)  # for reading/writing numpy arrays
 add_subdirectory(thirdparty/fmt)
+add_subdirectory(thirdparty/argparse)
 
 
 find_package(HDF5 REQUIRED COMPONENTS CXX)
@@ -53,6 +54,7 @@ target_link_libraries(estimate PRIVATE
     Eigen3::Eigen
     Ceres::ceres
     ${OpenCV_LIBS}
+    argparse
 )
 
 
