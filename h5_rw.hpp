@@ -66,6 +66,7 @@ std::pair<std::vector<int>, std::vector<ImagePair>> load_image_pairs(
         // Read attributes i and j
         g.openAttribute("i").read(PredType::NATIVE_INT, &p.i);
         g.openAttribute("j").read(PredType::NATIVE_INT, &p.j);
+        g.openAttribute("still").read(PredType::NATIVE_HBOOL, &p.still);
 
         pairs.push_back(p);
     }

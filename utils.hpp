@@ -100,5 +100,16 @@ Eigen::Matrix<T, 3, 3> apply_angular_vel(Eigen::Vector4<T> r,
     return R_av * R;
 }
 
+std::vector<Eigen::Vector2d> dummy_points()
+{
+    std::vector<Eigen::Vector2d> points;
+    for (int i = 0; i < 640; i += 40) {
+        for (int j = 0; j < 480; j += 40) {
+            points.push_back(Eigen::Vector2d(i, j));
+        }
+    }
+    return points;
+}
+
 
 }  // namespace utils

@@ -10,4 +10,5 @@ struct ImagePair {
     std::vector<std::array<double, 2>> dst_pts;
     int i;
     int j;
+    bool still;
 };

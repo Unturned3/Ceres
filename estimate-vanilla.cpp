@@ -20,27 +20,29 @@
 #include "ImagePair.hpp"
 #include "ReprojError.hpp"
 #include "h5_rw.hpp"
+#include "utils.hpp"
 
 namespace fs = std::filesystem;
 
 
 int main(int argc, char** argv)
 {
-    if (argc < 5) {
-        fmt::print("Usage: {} data_dir filename no_LC load_params\n", argv[0]);
+    if (argc < 6) {
+        fmt::print("Usage: {} data_dir filename no_LC load_params use_stills\n", argv[0]);
         return 1;
     }
 
     fs::path data_dir = argv[1];
     fs::path file_name = argv[2];
-    bool no_LC = (std::string(argv[3]) == "no_LC");
-    bool load_params = (std::string(argv[4]) == "load_params");
+    bool enable_LC = (std::string(argv[3]) == "yes");
+    bool load_params = (std::string(argv[4]) == "yes");
+    bool use_stills = (std::string(argv[5]) == "yes");
 
     std::string vid_stem = file_name.string().substr(0, 8);
     std::string out_path = data_dir / (vid_stem + "-opt-poses.h5");
 
-    if (no_LC) {
-        fmt::print("Ignoring loop closure constraints.\n");
+    if (enable_LC) {
+        fmt::print("Enabling loop closure constraints.\n");
     }
 
     auto [cam_indices, image_pairs] = load_image_pairs(data_dir / file_name);
@@ -60,12 +62,28 @@ int main(int argc, char** argv)
     ceres::Problem problem;
 
     for (const ImagePair& p : image_pairs) {
+
+        if (p.still && use_stills) {
+            auto pts = utils::dummy_points();
+            for (auto pt : pts) {
+                ceres::CostFunction* cost_function =
+                    RelativeReprojError::create(pt, pt);
+                problem.AddResidualBlock(cost_function,
+                                         //new ceres::CauchyLoss(0.5),
+                                         //new ceres::HuberLoss(1.0),
+                                         nullptr,
+                                         cam_params[p.i].data(),
+                                         cam_params[p.j].data());
+            }
+            continue;
+        }
+
         for (size_t i = 0; i < p.src_pts.size(); i++) {
             ceres::CostFunction* cost_function =
                 RelativeReprojError::create(p.src_pts[i], p.dst_pts[i]);
 
             if (p.i != p.j - 1) {
-                if (no_LC) {
+                if (!enable_LC) {
                     continue;
                 }
                 problem.AddResidualBlock(
