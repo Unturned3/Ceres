@@ -18,7 +18,6 @@
 #include "cnpy.h"
 
 #include "ImagePair.hpp"
-#include "LoadH5.hpp"
 #include "ReprojError.hpp"
 #include "h5_rw.hpp"
 
@@ -27,45 +26,60 @@ namespace fs = std::filesystem;
 
 int main(int argc, char** argv)
 {
-    if (argc < 3) {
-        fmt::print("Usage: {} data_dir filename\n", argv[0]);
+    if (argc < 5) {
+        fmt::print("Usage: {} data_dir filename no_LC load_params\n", argv[0]);
         return 1;
     }
 
     fs::path data_dir = argv[1];
-    fs::path filename = argv[2];
+    fs::path file_name = argv[2];
+    bool no_LC = (std::string(argv[3]) == "no_LC");
+    bool load_params = (std::string(argv[4]) == "load_params");
 
-    auto [cam_indices, image_pairs] = load_h5(data_dir / filename);
+    std::string vid_stem = file_name.string().substr(0, 8);
+    std::string out_path = data_dir / (vid_stem + "-opt-poses.h5");
 
+    if (no_LC) {
+        fmt::print("Ignoring loop closure constraints.\n");
+    }
+
+    auto [cam_indices, image_pairs] = load_image_pairs(data_dir / file_name);
+
+    fmt::print("Optimizing poses for {}.\n", vid_stem);
     fmt::print("Loaded {} image pairs.\n", image_pairs.size());
 
     std::map<int, std::array<double, 4>> cam_params;
-    for (int& i : cam_indices) {
-        cam_params[i] = {0, 0, 0, 640};
+
+    if (load_params) {
+        cam_params = import_cam_params(out_path);
+    } else {
+        for (int& i : cam_indices)
+            cam_params[i] = {0, 0, 0, 640};
     }
 
     ceres::Problem problem;
 
-    int scaled_cnt = 0;
     for (const ImagePair& p : image_pairs) {
         for (size_t i = 0; i < p.src_pts.size(); i++) {
             ceres::CostFunction* cost_function =
                 RelativeReprojError::create(p.src_pts[i], p.dst_pts[i]);
 
             if (p.i != p.j - 1) {
-                scaled_cnt += 1;
+                if (no_LC) {
+                    continue;
+                }
                 problem.AddResidualBlock(
                     cost_function,
-                    //new ceres::ScaledLoss(nullptr, 1000, ceres::TAKE_OWNERSHIP),
-                    //new ceres::HuberLoss(100),
-                    nullptr,
+                    new ceres::ScaledLoss(nullptr, (p.j - p.i), ceres::TAKE_OWNERSHIP),
+                    //new ceres::CauchyLoss(0.5),
+                    //nullptr,
                     cam_params[p.i].data(),
                     cam_params[p.j].data()
                 );
             } else {
                 problem.AddResidualBlock(cost_function,
-                                         new ceres::CauchyLoss(0.5),
-                                         //new ceres::HuberLoss(2.0),
+                                         //new ceres::CauchyLoss(0.5),
+                                         new ceres::HuberLoss(1.0),
                                          //nullptr,
                                          cam_params[p.i].data(),
                                          cam_params[p.j].data());
@@ -73,8 +87,6 @@ int main(int argc, char** argv)
 
         }
     }
-
-    fmt::print("Number of scaled residuals: {}\n", scaled_cnt);
 
     ceres::Solver::Options options;
     options.max_num_iterations = 500;
@@ -95,6 +107,6 @@ int main(int argc, char** argv)
     final_cost = std::sqrt(final_cost);
     fmt::print("\nAverage reprojection error: {:.2f} pixels\n", final_cost);
 
-    export_cam_params(data_dir / "optimized_cam_params.h5", cam_params);
+    export_cam_params(out_path, cam_params);
     return 0;
 }

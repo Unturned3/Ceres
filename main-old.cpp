@@ -17,7 +17,6 @@
 #include "cnpy.h"
 
 #include "ImagePair.hpp"
-#include "LoadH5.hpp"
 #include "ReprojError.hpp"
 #include "config.h"
 #include "h5_rw.hpp"
@@ -48,7 +47,7 @@ void tracks_to_residuals(const std::vector<Track>& tracks,
 
 int main(int argc, char** argv)
 {
-    auto [cam_indices, image_pairs] = load_h5(DATA_DIR "pairs.h5");
+    auto [cam_indices, image_pairs] = load_image_pairs(DATA_DIR "pairs.h5");
     // auto [track_uids, tracks] = load_tracks(DATA_DIR "tracks.h5");
 
     std::map<int, std::array<double, 4>> cam_params;
