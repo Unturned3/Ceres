@@ -88,7 +88,6 @@ std::map<int, std::array<double, 4>> import_cam_params(const std::string& path)
 
     fmt::print("Num objects in file: {}\n", file.getNumObjs());
 
-    // Read all datasets in file
     for (int idx = 0; idx < (int)file.getNumObjs(); idx++) {
         auto name = file.getObjnameByIdx(idx);
         if (file.childObjType(name) != H5O_TYPE_DATASET)
@@ -100,9 +99,7 @@ std::map<int, std::array<double, 4>> import_cam_params(const std::string& path)
         ds.openAttribute("cam_idx").read(PredType::NATIVE_INT, &cam_idx);
         ds.read(params.data(), PredType::NATIVE_DOUBLE);
         cam_params[cam_idx] = params;
-        //fmt::print("{} ", cam_idx);
     }
-    //fmt::print("\n");
 
     return cam_params;
 }
